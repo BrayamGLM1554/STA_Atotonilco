@@ -1,0 +1,58 @@
+# CODEOWNERS - Protección de archivos críticos
+# Documentación: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# =============================================================================
+# COMPONENTE DE CRÉDITOS DE DESARROLLADORES
+# =============================================================================
+# Este archivo contiene los créditos oficiales del equipo de desarrollo.
+# Cualquier modificación requiere la aprobación de AL MENOS UNO de los autores.
+# Para cambios urgentes, contactar directamente a los desarrolladores.
+
+# Protege el componente de créditos (CRÍTICO - Contiene nombres oficiales)
+/src/components/DeveloperCredits.tsx @BrayamGLM1554
+
+# Protege archivos que usan los créditos de desarrolladores
+/src/components/TranscribeFile.tsx @BrayamGLM1554
+/src/components/PDFViewer.tsx @BrayamGLM1554
+
+# Si hay más colaboradores, agrégalos aquí:
+# /src/components/DeveloperCredits.tsx @BrayamGLM1554 @arturo-lopez @mateo-hernandez
+# /src/components/TranscribeFile.tsx @BrayamGLM1554 @arturo-lopez @mateo-hernandez
+# /src/components/PDFViewer.tsx @BrayamGLM1554 @arturo-lopez @mateo-hernandez
+
+# =============================================================================
+# OPCIONAL: Otros archivos que quieras proteger
+# =============================================================================
+
+# Proteger configuraciones críticas
+# /src/config/ @BrayamGLM1554
+
+# Proteger archivos de autenticación
+# /src/components/Login.tsx @BrayamGLM1554
+
+# Proteger variables de entorno de producción
+# /.env.production @BrayamGLM1554
+
+# Proteger logos y assets importantes
+# /public/images/Logo_STA*.png @BrayamGLM1554
+
+# =============================================================================
+# NOTAS IMPORTANTES:
+# =============================================================================
+# 1. Para que CODEOWNERS funcione, debes:
+#    - Tener activada la protección de rama (branch protection) en GitHub
+#    - Requerir revisiones de pull request
+#    - Habilitar "Require review from Code Owners"
+#
+# 2. Los usuarios mencionados deben tener acceso al repositorio
+#
+# 3. El formato es: [ruta del archivo] @usuario1 @usuario2
+#
+# 4. Puedes usar wildcards:
+#    /src/components/Developer*.tsx @BrayamGLM1554
+#    *.config.js @BrayamGLM1554
+#
+# 5. ARCHIVOS ACTUALMENTE PROTEGIDOS:
+#    - DeveloperCredits.tsx (contiene nombres oficiales)
+#    - TranscribeFile.tsx (usa componente de créditos)
+#    - PDFViewer.tsx (usa componente de créditos y genera PDFs con nombres)
