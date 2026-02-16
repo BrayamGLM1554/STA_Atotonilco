@@ -1,5 +1,5 @@
 [build]
-  # Comando para construir el proyecto - usando npm install en lugar de npm ci
+  # Comando para construir el proyecto
   command = "npm install --legacy-peer-deps && npm run build"
   
   # Directorio donde se genera el build
@@ -7,7 +7,7 @@
   
   # Variables de entorno de build
   [build.environment]
-    NODE_VERSION = "20"
+    NODE_VERSION = "18"
 
 # Redireccionamiento para SPA (Single Page Application)
 # Esto es CRÍTICO para que React Router funcione correctamente
