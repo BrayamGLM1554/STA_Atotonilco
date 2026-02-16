@@ -1,7 +1,6 @@
-# Configuración de Netlify para React + Vite
 [build]
-  # Comando para construir el proyecto con instalación limpia
-  command = "npm ci --legacy-peer-deps && npm run build"
+  # Comando para construir el proyecto - usando npm install en lugar de npm ci
+  command = "npm install --legacy-peer-deps && npm run build"
   
   # Directorio donde se genera el build
   publish = "dist"
