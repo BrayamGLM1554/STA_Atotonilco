@@ -1,0 +1,39 @@
+# Configuración de Netlify para React + Vite
+[build]
+  # Comando para construir el proyecto con instalación limpia
+  command = "npm ci --legacy-peer-deps && npm run build"
+  
+  # Directorio donde se genera el build
+  publish = "dist"
+  
+  # Variables de entorno de build
+  [build.environment]
+    NODE_VERSION = "20"
+
+# Redireccionamiento para SPA (Single Page Application)
+# Esto es CRÍTICO para que React Router funcione correctamente
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers de seguridad (opcional pero recomendado)
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Cache para assets estáticos
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache para imágenes
+[[headers]]
+  for = "/images/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
