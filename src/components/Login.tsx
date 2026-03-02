@@ -1,3 +1,4 @@
+/* eslint-disable react/react-in-jsx-scope */
 import { useState } from 'react';
 import { Loader2, Lock, Mail, LogIn } from 'lucide-react';
 import loginLogo from '/images/Logo.png';

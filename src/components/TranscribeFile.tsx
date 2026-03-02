@@ -1,9 +1,10 @@
+/* eslint-disable react/react-in-jsx-scope */
 import { useState } from 'react';
 import { Upload, Loader2, CheckCircle, XCircle, Music, FileAudio, Clock } from 'lucide-react';
 import { PDFViewer } from './PDFViewer';
 import { DeveloperCredits } from './DeveloperCredits';
 
-const API_BASE_URL = 'https://api-transcription-assemblyai.onrender.com';
+const API_BASE_URL = 'http://localhost:5000';
 
 type OutputFormat = 'text' | 'srt' | 'vtt' | 'json';
 
@@ -17,7 +18,6 @@ export function TranscribeFile() {
   const [progress, setProgress] = useState<number>(0);
   const [outputFormat, setOutputFormat] = useState<OutputFormat>('text');
   const [transcriptionTime, setTranscriptionTime] = useState<number>(0);
-  const [startTime, setStartTime] = useState<number>(0);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -26,7 +26,6 @@ export function TranscribeFile() {
       setError(null);
       setTranscriptionStatus('');
       setTranscriptionTime(0);
-      setStartTime(0);
       setProgress(0);
     }
   };
@@ -45,20 +44,26 @@ export function TranscribeFile() {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       setFile(e.dataTransfer.files[0]);
       setResponse(null);
       setError(null);
       setTranscriptionStatus('');
       setTranscriptionTime(0);
-      setStartTime(0);
       setProgress(0);
     }
   };
 
-  const pollTranscriptionStatus = async (transcriptId: string) => {
-    const maxAttempts = 300; // 300 * 3s = 15 minutos máximo
+  /**
+   * Polling del estado de la transcripción.
+   * Recibe `uploadStartTime` como parámetro para evitar el problema de closure
+   * con el estado de React (que siempre leería el valor inicial 0).
+   */
+  const pollTranscriptionStatus = async (
+    transcriptId: string,
+    uploadStartTime: number   // ← parámetro en lugar de leer el estado
+  ) => {
+    const maxAttempts = 300;
     let attempts = 0;
 
     const checkStatus = async (): Promise<void> => {
@@ -66,63 +71,55 @@ export function TranscribeFile() {
         attempts++;
         setProgress(Math.min((attempts / maxAttempts) * 100, 95));
 
-        console.log(`🔍 [POLLING ${attempts}] Consultando estado del transcript_id: ${transcriptId}`);
-        const pollStartTime = Date.now();
+        console.log(`🔍 [POLLING ${attempts}] transcript_id: ${transcriptId}`);
 
-        // 🔥 TIMEOUT DE 30 SEGUNDOS POR CADA POLL
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
 
         const statusRes = await fetch(`${API_BASE_URL}/status/${transcriptId}`, {
-          headers: {
-            'Accept': 'application/json',
-          },
+          headers: { 'Accept': 'application/json' },
           signal: controller.signal,
         });
-        
         clearTimeout(timeoutId);
-        
-        const pollEndTime = Date.now();
-        const pollTime = ((pollEndTime - pollStartTime) / 1000).toFixed(2);
-        
+
         const statusData = await statusRes.json();
-        console.log(`📊 [POLLING ${attempts}] Respuesta recibida en ${pollTime}s | Estado: ${statusData.status}`);
+        console.log(`📊 [POLLING ${attempts}] Estado: ${statusData.status}`);
 
         if (statusData.status === 'completed') {
           setProgress(100);
           setTranscriptionStatus('✅ Transcripción completada');
-          const endTime = Date.now();
-          const totalTime = (endTime - startTime) / 1000;
-          setTranscriptionTime(totalTime);
-          console.log(`🎉 [COMPLETADO] Tiempo total: ${totalTime.toFixed(2)}s`);
+
+          // ✅ CORRECCIÓN: usar el parámetro, no el estado de React
+          const elapsed = (Date.now() - uploadStartTime) / 1000;
+          setTranscriptionTime(elapsed);
+          console.log(`🎉 [COMPLETADO] Tiempo total: ${elapsed.toFixed(2)}s`);
+
           setResponse({ status: 200, data: statusData });
           setLoading(false);
+
         } else if (statusData.status === 'error') {
-          console.error('❌ [ERROR] Error en la transcripción:', statusData.error);
+          console.error('❌ [ERROR]', statusData.error);
           setError(statusData.error || 'Error en la transcripción');
           setLoading(false);
-        } else if (statusData.status === 'processing') {
+
+        } else {
+          // Aún procesando
           const elapsed = Math.floor(attempts * 3);
           const minutes = Math.floor(elapsed / 60);
           const seconds = elapsed % 60;
           const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
-          
           setTranscriptionStatus(`⏳ Procesando... (${timeStr} transcurridos)`);
-          console.log(`⏳ [PROCESANDO] Tiempo transcurrido: ${timeStr}`);
-          
+
           if (attempts >= maxAttempts) {
-            console.error('⏰ [TIMEOUT] Tiempo máximo excedido');
             setError('Timeout: La transcripción está tardando demasiado. Intenta con un audio más corto.');
             setLoading(false);
           } else {
-            // Consultar cada 3 segundos
             setTimeout(() => checkStatus(), 3000);
           }
         }
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
-          console.warn('⚠️ [TIMEOUT] Poll timeout, reintentando...');
-          // Reintentar si es timeout
+          console.warn('⚠️ Poll timeout, reintentando...');
           if (attempts < maxAttempts) {
             setTimeout(() => checkStatus(), 3000);
           } else {
@@ -144,99 +141,71 @@ export function TranscribeFile() {
     e.preventDefault();
     if (!file) return;
 
-    console.log('🚀 [INICIO] Iniciando proceso de transcripción');
-    console.log('📁 Archivo:', file.name, '| Tamaño:', (file.size / 1024 / 1024).toFixed(2), 'MB');
-    console.log('🌐 API URL:', API_BASE_URL);
-    
+    console.log('🚀 Iniciando transcripción:', file.name, `${(file.size / 1024 / 1024).toFixed(2)} MB`);
+
     setLoading(true);
     setError(null);
     setResponse(null);
     setProgress(0);
-    setStartTime(Date.now());
+
+    // ✅ Guardar el tiempo de inicio en una variable local, NO solo en estado
+    const uploadStartTime = Date.now();
 
     try {
-      // 🔥 PASO 1: DESPERTAR EL SERVIDOR PRIMERO (si está dormido)
+      // Paso 1: Despertar servidor
       setTranscriptionStatus('🔄 Conectando con el servidor...');
-      console.log('🔄 [WAKE UP] Despertando servidor...');
-      
       const wakeUpController = new AbortController();
-      const wakeUpTimeout = setTimeout(() => wakeUpController.abort(), 90000); // 90 segundos
-      
+      const wakeUpTimeout = setTimeout(() => wakeUpController.abort(), 120000); // 2 min para wake-up
       try {
-        await fetch(`${API_BASE_URL}/health`, {
-          signal: wakeUpController.signal
-        });
+        await fetch(`${API_BASE_URL}/health`, { signal: wakeUpController.signal });
         clearTimeout(wakeUpTimeout);
-        console.log('✅ [WAKE UP] Servidor despierto');
-      } catch (wakeErr) {
+        console.log('✅ Servidor activo');
+      } catch {
         clearTimeout(wakeUpTimeout);
-        console.warn('⚠️ [WAKE UP] Error al despertar servidor (continuando de todas formas):', wakeErr);
-        // Continuar de todas formas, el servidor podría estar despierto
+        console.warn('⚠️ No se pudo hacer wake-up, continuando de todas formas...');
       }
 
-      // 🔥 PASO 2: SUBIR ARCHIVO CON TIMEOUT LARGO
-      setTranscriptionStatus('📤 Subiendo archivo...');
+      // Paso 2: Subir archivo
+      const fileSizeMB = (file.size / 1024 / 1024).toFixed(1);
+      setTranscriptionStatus(`📤 Subiendo archivo (${fileSizeMB} MB)... esto puede tardar si el archivo es grande`);
       const formData = new FormData();
       formData.append('audio', file);
-      
-      console.log('📤 [UPLOAD] Enviando archivo al servidor...');
-      const uploadStartTime = Date.now();
 
       const uploadController = new AbortController();
-      const uploadTimeout = setTimeout(() => uploadController.abort(), 120000); // 2 minutos para el upload
+      const uploadTimeout = setTimeout(() => uploadController.abort(), 600000); // 10 min para archivos grandes
 
       const res = await fetch(`${API_BASE_URL}/transcribe-async`, {
         method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-        },
+        headers: { 'Accept': 'application/json' },
         body: formData,
         signal: uploadController.signal,
       });
-
       clearTimeout(uploadTimeout);
-      
-      const uploadEndTime = Date.now();
-      const uploadTime = ((uploadEndTime - uploadStartTime) / 1000).toFixed(2);
-      console.log(`✅ [UPLOAD] Archivo enviado en ${uploadTime}s | Status: ${res.status}`);
 
-      if (!res.ok) {
-        console.error('❌ [UPLOAD] Error HTTP:', res.status);
-        throw new Error(`Error del servidor: ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`Error del servidor: ${res.status}`);
 
       const data = await res.json();
-      console.log('📦 [RESPONSE] Respuesta del servidor:', data);
+      console.log('📦 Respuesta:', data);
 
       if (res.status === 202 && data.transcript_id) {
         setTranscriptionStatus('🎙️ Transcripción iniciada, procesando...');
         setProgress(5);
-        console.log('🔄 [POLLING] Iniciando verificación de estado cada 3s...');
-        
-        // 🔥 PASO 3: CONSULTAR ESTADO PERIÓDICAMENTE
-        await pollTranscriptionStatus(data.transcript_id);
+
+        // ✅ Pasar uploadStartTime como parámetro para evitar el closure bug
+        await pollTranscriptionStatus(data.transcript_id, uploadStartTime);
       } else {
-        console.error('❌ [ERROR] Error en la respuesta:', data);
         setError(data.message || 'Error al iniciar la transcripción');
         setLoading(false);
       }
     } catch (err) {
-      console.error('❌ [ERROR CRÍTICO] Error en handleSubmit:', err);
-      
+      console.error('❌ Error crítico:', err);
       if (err instanceof Error && err.name === 'AbortError') {
-        setError('Timeout: El servidor tardó demasiado en responder. Puede estar iniciando, intenta de nuevo en 30 segundos.');
-        console.error('❌ Error de timeout - El servidor está despertando');
+        setError('Timeout al subir el archivo. Si es un archivo grande (>100MB) puede tardar varios minutos. Intenta de nuevo.');
       } else if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
-        setError('No se pudo conectar al servidor. El servidor puede estar iniciando, espera 30 segundos e intenta de nuevo.');
-        console.error('❌ Posibles causas:');
-        console.error('   - Servidor está despertando (espera 30-60 segundos)');
-        console.error('   - Problema de CORS');
-        console.error('   - Sin conexión a internet');
-        console.error('   - URL incorrecta:', API_BASE_URL);
+        setError('No se pudo conectar al servidor. Puede estar iniciando, espera 30 segundos e intenta de nuevo.');
       } else {
         setError(err instanceof Error ? err.message : 'Error al transcribir el archivo');
       }
-      
       setLoading(false);
     }
   };
@@ -252,10 +221,17 @@ export function TranscribeFile() {
   };
 
   const formatFileSize = (bytes: number) => {
-    if (bytes < 1024 * 1024) {
-      return `${(bytes / 1024).toFixed(2)} KB`;
-    }
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(2)} KB`;
     return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+  };
+
+  /** Formatea segundos como "Xm Ys" para el banner de completado */
+  const formatTime = (seconds: number): string => {
+    const total = Math.round(seconds);
+    if (total < 60) return `${total} seg`;
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return `${m} min ${s} seg`;
   };
 
   return (
@@ -320,17 +296,13 @@ export function TranscribeFile() {
                 <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
                   <FileAudio className="w-8 h-8 text-green-600" />
                 </div>
-                <p className="mb-1">
-                  <strong>{file.name}</strong>
-                </p>
-                <p className="text-sm text-[var(--color-secondary)]">
-                  {formatFileSize(file.size)}
-                </p>
+                <p className="mb-1"><strong>{file.name}</strong></p>
+                <p className="text-sm text-[var(--color-secondary)]">{formatFileSize(file.size)}</p>
               </div>
             )}
           </div>
 
-          {/* Action Buttons */}
+          {/* Botones */}
           <div className="flex gap-3">
             {file && !loading && (
               <button
@@ -347,38 +319,27 @@ export function TranscribeFile() {
               className="flex-1 bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-primary)] text-white px-8 py-3 rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  Procesando...
-                </>
+                <><Loader2 className="w-5 h-5 animate-spin" /> Procesando...</>
               ) : (
-                <>
-                  <Upload className="w-5 h-5" />
-                  Transcribir Audio
-                </>
+                <><Upload className="w-5 h-5" /> Transcribir Audio</>
               )}
             </button>
           </div>
         </form>
 
-        {/* Progress Indicator */}
+        {/* Indicador de progreso */}
         {loading && (
           <div className="mt-6 space-y-4">
             <div className="bg-blue-50 border-2 border-[#1976D2] rounded-xl p-4">
               <div className="flex items-start gap-3 mb-3">
                 <Clock className="w-5 h-5 text-[#1976D2] mt-0.5 flex-shrink-0 animate-pulse" />
                 <div className="flex-1">
-                  <p className="text-sm text-[#003B7E]">
-                    <strong>{transcriptionStatus}</strong>
-                  </p>
+                  <p className="text-sm text-[#003B7E]"><strong>{transcriptionStatus}</strong></p>
                   <p className="text-xs text-[#1976D2] mt-1">
-                    El tiempo de transcripción depende de la duración del audio. Archivos largos
-                    pueden tardar varios minutos.
+                    El tiempo depende de la duración del audio. Archivos largos pueden tardar varios minutos.
                   </p>
                 </div>
               </div>
-
-              {/* Progress Bar */}
               <div className="w-full bg-blue-100 rounded-full h-2.5 overflow-hidden">
                 <div
                   className="bg-gradient-to-r from-[#1976D2] to-[#00BCD4] h-2.5 rounded-full transition-all duration-500"
@@ -390,22 +351,16 @@ export function TranscribeFile() {
           </div>
         )}
 
-        {/* Completion Status - Shown after transcription completes */}
+        {/* Banner de completado */}
         {!loading && response && response.data.status === 'completed' && transcriptionTime > 0 && (
           <div className="mt-6">
             <div className="bg-green-50 border border-green-200 rounded-xl p-4">
               <div className="flex items-center gap-3">
                 <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="text-sm text-green-800">
-                    <strong>✅ Transcripción completada exitosamente</strong>
-                  </p>
+                  <p className="text-sm text-green-800"><strong>✅ Transcripción completada exitosamente</strong></p>
                   <p className="text-xs text-green-700 mt-1">
-                    Tiempo de procesamiento: <strong>{(() => {
-                      const minutes = Math.floor(transcriptionTime / 60);
-                      const seconds = Math.floor(transcriptionTime % 60);
-                      return minutes > 0 ? `${minutes} min ${seconds} seg` : `${seconds} seg`;
-                    })()}</strong>
+                    Tiempo de procesamiento: <strong>{formatTime(transcriptionTime)}</strong>
                   </p>
                 </div>
               </div>
@@ -414,7 +369,7 @@ export function TranscribeFile() {
         )}
       </div>
 
-      {/* Success Response */}
+      {/* PDFViewer */}
       {response && response.data.status === 'completed' && (
         <PDFViewer
           text={response.data.text}
@@ -427,7 +382,7 @@ export function TranscribeFile() {
         />
       )}
 
-      {/* Error Response */}
+      {/* Error */}
       {(error || (response && response.data.status !== 'completed')) && (
         <div className="bg-white rounded-2xl shadow-lg p-8 border-2 border-red-200">
           <div className="flex items-center gap-3 mb-4">
@@ -441,7 +396,6 @@ export function TranscribeFile() {
               </p>
             </div>
           </div>
-
           {response && (
             <details className="cursor-pointer">
               <summary className="text-sm text-[var(--color-secondary)] hover:text-[var(--color-accent)]">
@@ -452,7 +406,6 @@ export function TranscribeFile() {
               </pre>
             </details>
           )}
-
           <button
             onClick={resetForm}
             className="mt-4 w-full py-3 bg-gray-200 text-[var(--color-secondary)] rounded-lg hover:bg-gray-300 transition-all"
@@ -462,7 +415,7 @@ export function TranscribeFile() {
         </div>
       )}
 
-      {/* Features Info */}
+      {/* Info cards */}
       <div className="grid md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl p-6 shadow-sm">
           <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-3">
@@ -473,7 +426,6 @@ export function TranscribeFile() {
             Tecnología avanzada de IA para transcripciones precisas
           </p>
         </div>
-
         <div className="bg-white rounded-xl p-6 shadow-sm">
           <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-3">
             <Music className="w-6 h-6 text-[var(--color-accent)]" />
@@ -483,7 +435,6 @@ export function TranscribeFile() {
             Soporta archivos de hasta 4 horas de duración
           </p>
         </div>
-
         <div className="bg-white rounded-xl p-6 shadow-sm">
           <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-3">
             <FileAudio className="w-6 h-6 text-[var(--color-accent)]" />
