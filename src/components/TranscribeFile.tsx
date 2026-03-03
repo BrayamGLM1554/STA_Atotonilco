@@ -4,7 +4,7 @@ import { Upload, Loader2, CheckCircle, XCircle, Music, FileAudio, Clock } from '
 import { PDFViewer } from './PDFViewer';
 import { DeveloperCredits } from './DeveloperCredits';
 
-const API_BASE_URL = 'http://localhost:5000';
+const API_BASE_URL = 'https://api-transcription-assemblyai-16mn.onrender.com';
 
 type OutputFormat = 'text' | 'srt' | 'vtt' | 'json';
 
@@ -271,7 +271,7 @@ export function TranscribeFile() {
               type="file"
               id="file-input"
               onChange={handleFileChange}
-              accept=".mp3,.wav,.m4a,.flac,.ogg,.webm,audio/*"
+              accept=".mp3,.mp4,.wav,.m4a,.flac,.ogg,.webm,.aac,.amr,.opus,.wma,.mpeg,.mpga,.mp2,audio/*"
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               disabled={loading}
             />
@@ -288,7 +288,7 @@ export function TranscribeFile() {
                   o arrástralo aquí
                 </p>
                 <p className="text-sm text-[var(--color-secondary)]">
-                  Formatos: MP3, WAV, M4A, FLAC, OGG, WEBM
+                  Formatos: MP3, WAV, M4A, FLAC, OGG, WEBM, AAC, AMR, OPUS, WMA, MPEG
                 </p>
               </div>
             ) : (

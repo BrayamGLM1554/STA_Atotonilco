@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Loader2, Lock, Mail, LogIn } from 'lucide-react';
 import loginLogo from '/images/Logo.png';
 
-const AUTH_API_URL = 'https://login-transcriptor.onrender.com/api/auth';
+const AUTH_API_URL = 'https://login-transcriptor-hayj.onrender.com/api/auth';
 
 interface LoginProps {
   onLoginSuccess: (userData: any) => void;
