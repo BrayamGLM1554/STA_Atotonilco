@@ -4,7 +4,7 @@ import { Upload, Loader2, CheckCircle, XCircle, Music, FileAudio, Clock } from '
 import { PDFViewer } from './PDFViewer';
 import { DeveloperCredits } from './DeveloperCredits';
 
-const API_BASE_URL = 'https://api-transcription-assemblyai-16mn.onrender.com';
+const API_BASE_URL = 'https://api-transcription-assemblyai.onrender.com';
 
 type OutputFormat = 'text' | 'srt' | 'vtt' | 'json';
 
