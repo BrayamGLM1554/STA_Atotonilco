@@ -16,11 +16,11 @@ export default function App() {
     const storedUser = localStorage.getItem('user');
     
     if (token && storedUser) {
-      console.log('✅ [AUTH] Token encontrado en localStorage');
+      console.log('[AUTH] Token encontrado en localStorage');
       setIsAuthenticated(true);
       setUser(JSON.parse(storedUser));
     } else {
-      console.log('❌ [AUTH] No hay sesión activa');
+      console.log('[AUTH] No hay sesión activa');
     }
     
     setLoading(false);
@@ -32,12 +32,12 @@ export default function App() {
   };
 
   const handleLogout = () => {
-    console.log('🚪 [AUTH] Cerrando sesión...');
+    console.log('[AUTH] Cerrando sesión...');
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setIsAuthenticated(false);
     setUser(null);
-    console.log('✅ [AUTH] Sesión cerrada');
+    console.log('[AUTH] Sesión cerrada');
   };
 
   if (loading) {

@@ -71,7 +71,7 @@ export function TranscribeFile() {
         attempts++;
         setProgress(Math.min((attempts / maxAttempts) * 100, 95));
 
-        console.log(`🔍 [POLLING ${attempts}] transcript_id: ${transcriptId}`);
+        console.log(` [POLLING ${attempts}] transcript_id: ${transcriptId}`);
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
@@ -87,18 +87,18 @@ export function TranscribeFile() {
 
         if (statusData.status === 'completed') {
           setProgress(100);
-          setTranscriptionStatus('✅ Transcripción completada');
+          setTranscriptionStatus(' Transcripción completada');
 
-          // ✅ CORRECCIÓN: usar el parámetro, no el estado de React
+          //  CORRECCIÓN: usar el parámetro, no el estado de React
           const elapsed = (Date.now() - uploadStartTime) / 1000;
           setTranscriptionTime(elapsed);
-          console.log(`🎉 [COMPLETADO] Tiempo total: ${elapsed.toFixed(2)}s`);
+          console.log(` [COMPLETADO] Tiempo total: ${elapsed.toFixed(2)}s`);
 
           setResponse({ status: 200, data: statusData });
           setLoading(false);
 
         } else if (statusData.status === 'error') {
-          console.error('❌ [ERROR]', statusData.error);
+          console.error(' [ERROR]', statusData.error);
           setError(statusData.error || 'Error en la transcripción');
           setLoading(false);
 
@@ -119,7 +119,7 @@ export function TranscribeFile() {
         }
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
-          console.warn('⚠️ Poll timeout, reintentando...');
+          console.warn(' Poll timeout, reintentando...');
           if (attempts < maxAttempts) {
             setTimeout(() => checkStatus(), 3000);
           } else {
@@ -127,7 +127,7 @@ export function TranscribeFile() {
             setLoading(false);
           }
         } else {
-          console.error('❌ [ERROR POLLING]', err);
+          console.error(' [ERROR POLLING]', err);
           setError(err instanceof Error ? err.message : 'Error al verificar el estado');
           setLoading(false);
         }
@@ -141,7 +141,7 @@ export function TranscribeFile() {
     e.preventDefault();
     if (!file) return;
 
-    console.log('🚀 Iniciando transcripción:', file.name, `${(file.size / 1024 / 1024).toFixed(2)} MB`);
+    console.log(' Iniciando transcripción:', file.name, `${(file.size / 1024 / 1024).toFixed(2)} MB`);
 
     setLoading(true);
     setError(null);
@@ -153,13 +153,13 @@ export function TranscribeFile() {
 
     try {
       // Paso 1: Despertar servidor
-      setTranscriptionStatus('🔄 Conectando con el servidor...');
+      setTranscriptionStatus(' Conectando con el servidor...');
       const wakeUpController = new AbortController();
       const wakeUpTimeout = setTimeout(() => wakeUpController.abort(), 120000); // 2 min para wake-up
       try {
         await fetch(`${API_BASE_URL}/health`, { signal: wakeUpController.signal });
         clearTimeout(wakeUpTimeout);
-        console.log('✅ Servidor activo');
+        console.log(' Servidor activo');
       } catch {
         clearTimeout(wakeUpTimeout);
         console.warn('⚠️ No se pudo hacer wake-up, continuando de todas formas...');
@@ -167,7 +167,7 @@ export function TranscribeFile() {
 
       // Paso 2: Subir archivo
       const fileSizeMB = (file.size / 1024 / 1024).toFixed(1);
-      setTranscriptionStatus(`📤 Subiendo archivo (${fileSizeMB} MB)... esto puede tardar si el archivo es grande`);
+      setTranscriptionStatus(` Subiendo archivo (${fileSizeMB} MB)... esto puede tardar si el archivo es grande`);
       const formData = new FormData();
       formData.append('audio', file);
 
@@ -185,20 +185,20 @@ export function TranscribeFile() {
       if (!res.ok) throw new Error(`Error del servidor: ${res.status}`);
 
       const data = await res.json();
-      console.log('📦 Respuesta:', data);
+      console.log(' Respuesta:', data);
 
       if (res.status === 202 && data.transcript_id) {
-        setTranscriptionStatus('🎙️ Transcripción iniciada, procesando...');
+        setTranscriptionStatus(' Transcripción iniciada, procesando...');
         setProgress(5);
 
-        // ✅ Pasar uploadStartTime como parámetro para evitar el closure bug
+        //  Pasar uploadStartTime como parámetro para evitar el closure bug
         await pollTranscriptionStatus(data.transcript_id, uploadStartTime);
       } else {
         setError(data.message || 'Error al iniciar la transcripción');
         setLoading(false);
       }
     } catch (err) {
-      console.error('❌ Error crítico:', err);
+      console.error(' Error crítico:', err);
       if (err instanceof Error && err.name === 'AbortError') {
         setError('Timeout al subir el archivo. Si es un archivo grande (>100MB) puede tardar varios minutos. Intenta de nuevo.');
       } else if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
@@ -358,7 +358,7 @@ export function TranscribeFile() {
               <div className="flex items-center gap-3">
                 <CheckCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="text-sm text-green-800"><strong>✅ Transcripción completada exitosamente</strong></p>
+                  <p className="text-sm text-green-800"><strong> Transcripción completada exitosamente</strong></p>
                   <p className="text-xs text-green-700 mt-1">
                     Tiempo de procesamiento: <strong>{formatTime(transcriptionTime)}</strong>
                   </p>

@@ -4,7 +4,7 @@ import { Code2 } from 'lucide-react';
 /**
  * COMPONENTE DE CRÉDITOS DE DESARROLLADORES
  * 
- * ⚠️ ADVERTENCIA: Este componente está protegido por CODEOWNERS
+ *  ADVERTENCIA: Este componente está protegido por CODEOWNERS
  * Cualquier modificación requiere aprobación explícita de los autores.
  * 
  * Para modificar este archivo, consulta las reglas en .github/CODEOWNERS

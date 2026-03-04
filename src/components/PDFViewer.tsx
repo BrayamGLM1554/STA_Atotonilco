@@ -540,7 +540,7 @@ export function PDFViewer({
         )}
 
         <p className="text-xs text-[var(--color-secondary)] mt-3 text-center">
-          💡 Navega entre las páginas para ver cómo se verá tu documento completo
+          Navega entre las páginas para ver cómo se verá tu documento completo
         </p>
       </div>
 

@@ -23,9 +23,9 @@ export function Login({ onLoginSuccess }: LoginProps) {
       return;
     }
 
-    console.log('🔐 [LOGIN] Iniciando sesión...');
-    console.log('📧 Email:', email);
-    console.log('🌐 API URL:', AUTH_API_URL);
+    console.log('[LOGIN] Iniciando sesión...');
+    console.log('Email:', email);
+    console.log('API URL:', AUTH_API_URL);
     
     setLoading(true);
     setError(null);
@@ -33,7 +33,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
     try {
       const loginStartTime = Date.now();
       
-      console.log('📤 [LOGIN] Enviando petición a:', `${AUTH_API_URL}/login`);
+      console.log('[LOGIN] Enviando petición a:', `${AUTH_API_URL}/login`);
       
       const response = await fetch(`${AUTH_API_URL}/login`, {
         method: 'POST',
@@ -46,10 +46,10 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
       const loginEndTime = Date.now();
       const loginTime = ((loginEndTime - loginStartTime) / 1000).toFixed(2);
-      console.log(`✅ [LOGIN] Respuesta recibida en ${loginTime}s | Status: ${response.status}`);
+      console.log(`[LOGIN] Respuesta recibida en ${loginTime}s | Status: ${response.status}`);
 
       const data = await response.json();
-      console.log('📦 [LOGIN] Respuesta:', data);
+      console.log('[LOGIN] Respuesta:', data);
 
       if (!response.ok) {
         // Manejar errores HTTP
@@ -62,7 +62,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
         } else {
           setError(data.message || 'Error al iniciar sesión');
         }
-        console.error('❌ [LOGIN] Error HTTP:', response.status, data);
+        console.error('[LOGIN] Error HTTP:', response.status, data);
         return;
       }
 
@@ -71,21 +71,21 @@ export function Login({ onLoginSuccess }: LoginProps) {
         localStorage.setItem('token', data.data.token);
         localStorage.setItem('user', JSON.stringify(data.data.user));
         
-        console.log('✅ [LOGIN] Token guardado en localStorage');
-        console.log('👤 [LOGIN] Usuario:', data.data.user.email);
+        console.log('[LOGIN] Token guardado en localStorage');
+        console.log('[LOGIN] Usuario:', data.data.user.email);
         
         // Notificar al componente padre
         onLoginSuccess(data.data);
       } else {
-        console.error('❌ [LOGIN] Error:', data.message);
+        console.error('[LOGIN] Error:', data.message);
         setError(data.message || 'Error al iniciar sesión');
       }
     } catch (err) {
-      console.error('❌ [LOGIN CRÍTICO] Error completo:', err);
+      console.error('[LOGIN CRÍTICO] Error completo:', err);
       
       if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
         setError('No se pudo conectar al servidor. Verifica tu conexión a internet o que el servidor esté disponible.');
-        console.error('❌ [LOGIN] Posibles causas:');
+        console.error('[LOGIN] Posibles causas:');
         console.error('   - Servidor no disponible');
         console.error('   - Problema de CORS');
         console.error('   - Sin conexión a internet');
