@@ -1,10 +1,18 @@
 /* eslint-disable react/react-in-jsx-scope */
 import { useState } from 'react';
-import { Upload, Loader2, CheckCircle, XCircle, Music, FileAudio, Clock, Video, FileVideo, AlertTriangle, WifiOff, TimerOff, ServerCrash, FileX, ShieldAlert } from 'lucide-react';
+import {
+  Upload, Loader2, CheckCircle, XCircle, Music, FileAudio,
+  Clock, Video, FileVideo, AlertTriangle, WifiOff, TimerOff,
+  ServerCrash, FileX, ShieldAlert,
+} from 'lucide-react';
 import { PDFViewer } from './PDFViewer';
 import { DeveloperCredits } from './DeveloperCredits';
 
 const API_BASE_URL = 'https://api-transcription-assemblyai.onrender.com';
+
+// Archivos por encima de este umbral se suben directo a AssemblyAI
+// sin pasar por Render (evita el error 413).
+const DIRECT_UPLOAD_THRESHOLD = 80 * 1024 * 1024; // 80 MB (margen de seguridad)
 
 type OutputFormat = 'text' | 'srt' | 'vtt' | 'json';
 type MediaType = 'audio' | 'video';
@@ -28,7 +36,7 @@ const MEDIA_CONFIG = {
     FileIcon: FileAudio,
     uploadLabel: 'Sube tu archivo de audio',
     dropLabel: 'Selecciona un archivo de audio',
-    hint: 'Soporta audios de hasta 6 horas de duracion',
+    hint: 'Audios pequeños (<80 MB) se procesan por el servidor. Audios grandes se suben directo a AssemblyAI.',
   },
   video: {
     accept: '.mp4,.mov,.avi,.mkv,.wmv,.flv,.webm,.m4v,.3gp,.ts,.mts,video/*',
@@ -39,9 +47,13 @@ const MEDIA_CONFIG = {
     FileIcon: FileVideo,
     uploadLabel: 'Sube tu archivo de video',
     dropLabel: 'Selecciona un archivo de video',
-    hint: 'Se extraera el audio del video automaticamente',
+    hint: 'Los videos se suben directo a AssemblyAI (sin limite de tamaño en Render). El audio se extrae automaticamente.',
   },
 } as const;
+
+// ── Determina si el archivo debe ir directo a AssemblyAI ─────────────────────
+const needsDirectUpload = (file: File, mediaType: MediaType): boolean =>
+  mediaType === 'video' || file.size > DIRECT_UPLOAD_THRESHOLD;
 
 // ── Icono segun tipo de error ────────────────────────────────────────────────
 function ErrorIcon({ type }: { type: AppError['icon'] }) {
@@ -135,7 +147,7 @@ export function TranscribeFile() {
       case 401: return 'No autorizado. La API Key de AssemblyAI puede ser incorrecta o haber expirado.';
       case 403: return 'Acceso denegado. Verifica que la API Key tenga permisos suficientes.';
       case 404: return 'El endpoint solicitado no existe en el servidor. Verifica que la URL de la API sea correcta.';
-      case 413: return 'El archivo es demasiado grande para ser aceptado por el servidor. Reduce el tamano o divide el archivo.';
+      case 413: return 'El archivo es demasiado grande para el servidor. Para archivos grandes usa el modo de subida directa (videos o >80 MB).';
       case 429: return 'Se excedio el limite de solicitudes de AssemblyAI. Espera unos minutos antes de intentar de nuevo.';
       case 500: return 'Error interno del servidor. El backend encontro un problema al procesar la solicitud.';
       case 502: return 'El servidor no pudo comunicarse con AssemblyAI (Bad Gateway). Puede ser un problema temporal.';
@@ -207,7 +219,7 @@ export function TranscribeFile() {
     const checkStatus = async (): Promise<void> => {
       try {
         attempts++;
-        setProgress(Math.min((attempts / maxAttempts) * 100, 95));
+        setProgress(Math.min(10 + (attempts / maxAttempts) * 85, 95));
 
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
@@ -218,7 +230,6 @@ export function TranscribeFile() {
         });
         clearTimeout(timeoutId);
 
-        // Error HTTP durante el polling
         if (!statusRes.ok) {
           let body: string | undefined;
           try { body = await statusRes.text(); } catch { /* ignorar */ }
@@ -255,7 +266,6 @@ export function TranscribeFile() {
         }
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') {
-          // Timeout de la peticion de polling (30 s), reintento silencioso
           if (attempts < maxAttempts) {
             setTranscriptionStatus(`Sin respuesta del servidor, reintentando... (intento ${attempts})`);
             setTimeout(() => checkStatus(), 3000);
@@ -276,6 +286,198 @@ export function TranscribeFile() {
     await checkStatus();
   };
 
+  // ── Subida directa a AssemblyAI (videos y archivos grandes) ─────────────
+  const handleDirectUpload = async (
+    file: File,
+    fileSizeMB: string,
+    uploadStartTime: number,
+  ): Promise<void> => {
+    // 1. Obtener credenciales del backend
+    setTranscriptionStatus('Preparando subida directa a AssemblyAI...');
+    setProgress(2);
+
+    let uploadUrl: string;
+    let apiKey: string;
+
+    try {
+      const credRes = await fetch(`${API_BASE_URL}/get-upload-url`, { method: 'POST' });
+      if (!credRes.ok) {
+        setServerError(credRes.status, await credRes.text());
+        setLoading(false);
+        return;
+      }
+      const credData = await credRes.json();
+      uploadUrl = credData.upload_url;
+      apiKey = credData.api_key;
+    } catch (err) {
+      if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
+        setNetworkError((err as TypeError).message);
+      } else {
+        setUnknownError(err);
+      }
+      setLoading(false);
+      return;
+    }
+
+    // 2. Subir el archivo directo a AssemblyAI (sin pasar por Render)
+    setTranscriptionStatus(
+      mediaType === 'video'
+        ? `Subiendo video (${fileSizeMB} MB) directo a AssemblyAI... El audio se extraera automaticamente`
+        : `Subiendo audio grande (${fileSizeMB} MB) directo a AssemblyAI...`
+    );
+    setProgress(5);
+
+    const uploadController = new AbortController();
+    // 30 minutos para archivos muy grandes
+    const uploadTimeout = setTimeout(() => uploadController.abort(), 30 * 60 * 1000);
+
+    let assemblyUploadRes: Response;
+    try {
+      assemblyUploadRes = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          authorization: apiKey,
+          'Content-Type': 'application/octet-stream',
+        },
+        body: file,                  // binario directo, sin FormData
+        signal: uploadController.signal,
+      });
+      clearTimeout(uploadTimeout);
+    } catch (fetchErr) {
+      clearTimeout(uploadTimeout);
+      if (fetchErr instanceof Error && fetchErr.name === 'AbortError') {
+        setUploadTimeoutError(fileSizeMB);
+      } else if (fetchErr instanceof TypeError) {
+        setNetworkError((fetchErr as TypeError).message);
+      } else {
+        setUnknownError(fetchErr);
+      }
+      setLoading(false);
+      return;
+    }
+
+    if (!assemblyUploadRes.ok) {
+      setServerError(assemblyUploadRes.status, await assemblyUploadRes.text());
+      setLoading(false);
+      return;
+    }
+
+    const { upload_url: audioUrl } = await assemblyUploadRes.json();
+
+    // 3. Iniciar transcripcion en el backend con la URL ya subida (async)
+    setTranscriptionStatus('Iniciando transcripcion...');
+    setProgress(8);
+
+    let transcriptId: string;
+
+    try {
+      const transcribeRes = await fetch(`${API_BASE_URL}/transcribe-url-async`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ audio_url: audioUrl, quality: 'maximum' }),
+      });
+
+      if (!transcribeRes.ok) {
+        setServerError(transcribeRes.status, await transcribeRes.text());
+        setLoading(false);
+        return;
+      }
+
+      const transcribeData = await transcribeRes.json();
+
+      if (transcribeData.transcript_id) {
+        transcriptId = transcribeData.transcript_id;
+      } else {
+        setAppError({
+          icon: 'server',
+          title: 'Respuesta inesperada del servidor',
+          message: 'El servidor no devolvio un ID de transcripcion.',
+          detail: JSON.stringify(transcribeData),
+        });
+        setLoading(false);
+        return;
+      }
+    } catch (err) {
+      if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
+        setNetworkError((err as TypeError).message);
+      } else {
+        setUnknownError(err);
+      }
+      setLoading(false);
+      return;
+    }
+
+    // 4. Polling
+    setTranscriptionStatus('Transcripcion iniciada, procesando...');
+    setProgress(10);
+    await pollTranscriptionStatus(transcriptId, uploadStartTime);
+  };
+
+  // ── Subida por Render (audios pequeños < 80 MB) ───────────────────────────
+  const handleRenderUpload = async (
+    file: File,
+    fileSizeMB: string,
+    uploadStartTime: number,
+  ): Promise<void> => {
+    setTranscriptionStatus(`Subiendo audio (${fileSizeMB} MB)...`);
+    setProgress(2);
+
+    const formData = new FormData();
+    formData.append('audio', file);
+
+    const uploadController = new AbortController();
+    const uploadTimeout = setTimeout(() => uploadController.abort(), 600000); // 10 min
+
+    let res: Response;
+    try {
+      res = await fetch(`${API_BASE_URL}/transcribe-async`, {
+        method: 'POST',
+        headers: { Accept: 'application/json' },
+        body: formData,
+        signal: uploadController.signal,
+      });
+      clearTimeout(uploadTimeout);
+    } catch (fetchErr) {
+      clearTimeout(uploadTimeout);
+      if (fetchErr instanceof Error && fetchErr.name === 'AbortError') {
+        setUploadTimeoutError(fileSizeMB);
+      } else if (fetchErr instanceof TypeError) {
+        setNetworkError((fetchErr as TypeError).message);
+      } else {
+        setUnknownError(fetchErr);
+      }
+      setLoading(false);
+      return;
+    }
+
+    if (!res.ok) {
+      let body: string | undefined;
+      try { body = await res.text(); } catch { /* ignorar */ }
+      setServerError(res.status, body);
+      setLoading(false);
+      return;
+    }
+
+    const data = await res.json();
+
+    if (res.status === 202 && data.transcript_id) {
+      setTranscriptionStatus('Transcripcion iniciada, procesando...');
+      setProgress(10);
+      await pollTranscriptionStatus(data.transcript_id, uploadStartTime);
+    } else {
+      setAppError({
+        icon: 'server',
+        title: 'Respuesta inesperada del servidor',
+        message: 'El servidor respondio sin un ID de transcripcion.',
+        detail: data.message || JSON.stringify(data),
+      });
+      setLoading(false);
+    }
+  };
+
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -288,9 +490,13 @@ export function TranscribeFile() {
 
     const uploadStartTime = Date.now();
     const fileSizeMB = (file.size / 1024 / 1024).toFixed(1);
+    const useDirect = needsDirectUpload(file, mediaType);
+
+    console.log(`[STA] Archivo: ${file.name} | ${fileSizeMB} MB | mediaType: ${mediaType}`);
+    console.log(`[STA] Ruta: ${useDirect ? 'DIRECTA (AssemblyAI)' : 'RENDER (<80 MB)'}`);
 
     try {
-      // Paso 1: Wake-up (falla silenciosa)
+      // Wake-up del servidor (falla silenciosa)
       setTranscriptionStatus('Conectando con el servidor...');
       const wakeUpController = new AbortController();
       const wakeUpTimeout = setTimeout(() => wakeUpController.abort(), 120000);
@@ -301,64 +507,10 @@ export function TranscribeFile() {
         clearTimeout(wakeUpTimeout);
       }
 
-      // Paso 2: Upload
-      setTranscriptionStatus(
-        mediaType === 'video'
-          ? `Subiendo video (${fileSizeMB} MB)... El audio sera extraido automaticamente`
-          : `Subiendo audio (${fileSizeMB} MB)...`
-      );
-
-      const formData = new FormData();
-      formData.append('audio', file);
-
-      const uploadController = new AbortController();
-      const uploadTimeout = setTimeout(() => uploadController.abort(), 600000);
-
-      let res: Response;
-      try {
-        res = await fetch(`${API_BASE_URL}/transcribe-async`, {
-          method: 'POST',
-          headers: { Accept: 'application/json' },
-          body: formData,
-          signal: uploadController.signal,
-        });
-        clearTimeout(uploadTimeout);
-      } catch (fetchErr) {
-        clearTimeout(uploadTimeout);
-        if (fetchErr instanceof Error && fetchErr.name === 'AbortError') {
-          setUploadTimeoutError(fileSizeMB);
-        } else if (fetchErr instanceof TypeError && (fetchErr as TypeError).message.includes('Failed to fetch')) {
-          setNetworkError((fetchErr as TypeError).message);
-        } else {
-          setUnknownError(fetchErr);
-        }
-        setLoading(false);
-        return;
-      }
-
-      // Error HTTP en la subida
-      if (!res.ok) {
-        let body: string | undefined;
-        try { body = await res.text(); } catch { /* ignorar */ }
-        setServerError(res.status, body);
-        setLoading(false);
-        return;
-      }
-
-      const data = await res.json();
-
-      if (res.status === 202 && data.transcript_id) {
-        setTranscriptionStatus('Transcripcion iniciada, procesando...');
-        setProgress(5);
-        await pollTranscriptionStatus(data.transcript_id, uploadStartTime);
+      if (useDirect) {
+        await handleDirectUpload(file, fileSizeMB, uploadStartTime);
       } else {
-        setAppError({
-          icon: 'server',
-          title: 'Respuesta inesperada del servidor',
-          message: 'El servidor respondio sin un ID de transcripcion. Es posible que haya un problema en el backend.',
-          detail: data.message || JSON.stringify(data),
-        });
-        setLoading(false);
+        await handleRenderUpload(file, fileSizeMB, uploadStartTime);
       }
     } catch (err) {
       setUnknownError(err);
@@ -390,6 +542,23 @@ export function TranscribeFile() {
   };
 
   const { Icon, FileIcon } = config;
+
+  // Badge que muestra la ruta que se usara
+  const UploadRouteBadge = ({ file }: { file: File }) => {
+    const direct = needsDirectUpload(file, mediaType);
+    return (
+      <div className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${
+        direct
+          ? 'bg-purple-100 text-purple-700 border border-purple-200'
+          : 'bg-green-100 text-green-700 border border-green-200'
+      }`}>
+        <span className={`w-1.5 h-1.5 rounded-full ${direct ? 'bg-purple-500' : 'bg-green-500'}`} />
+        {direct
+          ? 'Subida directa a AssemblyAI (sin limite de tamaño)'
+          : 'Subida por servidor Render (<80 MB)'}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -488,6 +657,13 @@ export function TranscribeFile() {
             )}
           </div>
 
+          {/* Badge de ruta */}
+          {file && !loading && (
+            <div className="flex justify-center">
+              <UploadRouteBadge file={file} />
+            </div>
+          )}
+
           {/* Botones */}
           <div className="flex gap-3">
             {file && !loading && (
@@ -523,7 +699,7 @@ export function TranscribeFile() {
                   <p className="text-sm text-[#003B7E]"><strong>{transcriptionStatus}</strong></p>
                   <p className="text-xs text-[#1976D2] mt-1">
                     {mediaType === 'video'
-                      ? 'Los videos pueden tardar mas debido a la extraccion de audio.'
+                      ? 'El video se sube directo a AssemblyAI. El tiempo depende de tu conexion y la duracion del video.'
                       : 'El tiempo depende de la duracion del audio. Archivos largos pueden tardar varios minutos.'}
                   </p>
                 </div>
