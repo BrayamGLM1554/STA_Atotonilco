@@ -275,7 +275,8 @@ export function PDFViewer({
       pdf.text(dev, pageWidth / 2, footerY + 5 + index * 5, { align: "center" });
     });
 
-    pdf.save(`transcripcion-${Date.now()}.pdf`);
+    const cleanName = fileName.replace(/\.[^/.]+$/, ''); // quita la extensión
+    pdf.save(`Transcripcion "${cleanName}".pdf`);
   };
 
   // ─── Descarga genérica ────────────────────────────────────────────────────────
@@ -295,7 +296,8 @@ export function PDFViewer({
       const url  = URL.createObjectURL(blob);
       const a    = document.createElement("a");
       a.href     = url;
-      a.download = `transcripcion-${Date.now()}.${extensions[outputFormat]}`;
+      const cleanName = fileName.replace(/\.[^/.]+$/, '');
+      a.download = `Transcripcion "${cleanName}".${extensions[outputFormat]}`;
       a.click();
       URL.revokeObjectURL(url);
     }
