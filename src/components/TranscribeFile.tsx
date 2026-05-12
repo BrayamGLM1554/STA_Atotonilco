@@ -10,14 +10,11 @@ import { DeveloperCredits } from './DeveloperCredits';
 
 const API_BASE_URL = 'https://api-transcription-assemblyai.onrender.com';
 
-// Archivos por encima de este umbral se suben directo a AssemblyAI
-// sin pasar por Render (evita el error 413).
-const DIRECT_UPLOAD_THRESHOLD = 80 * 1024 * 1024; // 80 MB (margen de seguridad)
+const DIRECT_UPLOAD_THRESHOLD = 80 * 1024 * 1024;
 
 type OutputFormat = 'text' | 'srt' | 'vtt' | 'json';
 type MediaType = 'audio' | 'video';
 
-// ── Tipos de error estructurado ──────────────────────────────────────────────
 type AppError = {
   title: string;
   message: string;
@@ -25,7 +22,6 @@ type AppError = {
   icon: 'wifi' | 'timeout' | 'server' | 'file' | 'transcription' | 'unknown';
 };
 
-// ── Configuracion por tipo de medio ─────────────────────────────────────────
 const MEDIA_CONFIG = {
   audio: {
     accept: '.mp3,.mp4,.wav,.m4a,.flac,.ogg,.webm,.aac,.amr,.opus,.wma,.mpeg,.mpga,.mp2,audio/*',
@@ -51,11 +47,9 @@ const MEDIA_CONFIG = {
   },
 } as const;
 
-// ── Determina si el archivo debe ir directo a AssemblyAI ─────────────────────
 const needsDirectUpload = (file: File, mediaType: MediaType): boolean =>
   mediaType === 'video' || file.size > DIRECT_UPLOAD_THRESHOLD;
 
-// ── Icono segun tipo de error ────────────────────────────────────────────────
 function ErrorIcon({ type }: { type: AppError['icon'] }) {
   const cls = 'w-6 h-6 text-red-600';
   switch (type) {
@@ -82,7 +76,6 @@ export function TranscribeFile() {
 
   const config = MEDIA_CONFIG[mediaType];
 
-  // ── Helpers de error ─────────────────────────────────────────────────────
   const setNetworkError = (rawMessage?: string) =>
     setAppError({
       icon: 'wifi',
@@ -140,7 +133,6 @@ export function TranscribeFile() {
     });
   };
 
-  // ── Mensajes HTTP especificos ────────────────────────────────────────────
   const getServerErrorMessage = (code: number): string => {
     switch (code) {
       case 400: return 'La solicitud enviada al servidor no es valida. Es posible que el archivo este malformado o que falten datos requeridos.';
@@ -157,13 +149,11 @@ export function TranscribeFile() {
     }
   };
 
-  // ── Cambio de tipo de medio ───────────────────────────────────────────────
   const handleMediaTypeChange = (type: MediaType) => {
     setMediaType(type);
     resetForm();
   };
 
-  // ── Validacion de archivo ────────────────────────────────────────────────
   const isValidFile = (f: File): boolean => {
     const name = f.name.toLowerCase();
     return config.allowedExt.some(ext => name.endsWith(ext));
@@ -211,7 +201,6 @@ export function TranscribeFile() {
     }
   };
 
-  // ── Polling ───────────────────────────────────────────────────────────────
   const pollTranscriptionStatus = async (transcriptId: string, uploadStartTime: number) => {
     const maxAttempts = 300;
     let attempts = 0;
@@ -286,13 +275,7 @@ export function TranscribeFile() {
     await checkStatus();
   };
 
-  // ── Subida directa a AssemblyAI (videos y archivos grandes) ─────────────
-  const handleDirectUpload = async (
-    file: File,
-    fileSizeMB: string,
-    uploadStartTime: number,
-  ): Promise<void> => {
-    // 1. Obtener credenciales del backend
+  const handleDirectUpload = async (file: File, fileSizeMB: string, uploadStartTime: number): Promise<void> => {
     setTranscriptionStatus('Preparando subida directa a AssemblyAI...');
     setProgress(2);
 
@@ -319,7 +302,6 @@ export function TranscribeFile() {
       return;
     }
 
-    // 2. Subir el archivo directo a AssemblyAI (sin pasar por Render)
     setTranscriptionStatus(
       mediaType === 'video'
         ? `Subiendo video (${fileSizeMB} MB) directo a AssemblyAI... El audio se extraera automaticamente`
@@ -328,18 +310,14 @@ export function TranscribeFile() {
     setProgress(5);
 
     const uploadController = new AbortController();
-    // 30 minutos para archivos muy grandes
     const uploadTimeout = setTimeout(() => uploadController.abort(), 30 * 60 * 1000);
 
     let assemblyUploadRes: Response;
     try {
       assemblyUploadRes = await fetch(uploadUrl, {
         method: 'POST',
-        headers: {
-          authorization: apiKey,
-          'Content-Type': 'application/octet-stream',
-        },
-        body: file,                  // binario directo, sin FormData
+        headers: { authorization: apiKey, 'Content-Type': 'application/octet-stream' },
+        body: file,
         signal: uploadController.signal,
       });
       clearTimeout(uploadTimeout);
@@ -364,7 +342,6 @@ export function TranscribeFile() {
 
     const { upload_url: audioUrl } = await assemblyUploadRes.json();
 
-    // 3. Iniciar transcripcion en el backend con la URL ya subida (async)
     setTranscriptionStatus('Iniciando transcripcion...');
     setProgress(8);
 
@@ -373,10 +350,7 @@ export function TranscribeFile() {
     try {
       const transcribeRes = await fetch(`${API_BASE_URL}/transcribe-url-async`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         body: JSON.stringify({ audio_url: audioUrl, quality: 'maximum' }),
       });
 
@@ -410,18 +384,12 @@ export function TranscribeFile() {
       return;
     }
 
-    // 4. Polling
     setTranscriptionStatus('Transcripcion iniciada, procesando...');
     setProgress(10);
     await pollTranscriptionStatus(transcriptId, uploadStartTime);
   };
 
-  // ── Subida por Render (audios pequeños < 80 MB) ───────────────────────────
-  const handleRenderUpload = async (
-    file: File,
-    fileSizeMB: string,
-    uploadStartTime: number,
-  ): Promise<void> => {
+  const handleRenderUpload = async (file: File, fileSizeMB: string, uploadStartTime: number): Promise<void> => {
     setTranscriptionStatus(`Subiendo audio (${fileSizeMB} MB)...`);
     setProgress(2);
 
@@ -429,7 +397,7 @@ export function TranscribeFile() {
     formData.append('audio', file);
 
     const uploadController = new AbortController();
-    const uploadTimeout = setTimeout(() => uploadController.abort(), 600000); // 10 min
+    const uploadTimeout = setTimeout(() => uploadController.abort(), 600000);
 
     let res: Response;
     try {
@@ -478,7 +446,6 @@ export function TranscribeFile() {
     }
   };
 
-  // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!file) return;
@@ -496,7 +463,6 @@ export function TranscribeFile() {
     console.log(`[STA] Ruta: ${useDirect ? 'DIRECTA (AssemblyAI)' : 'RENDER (<80 MB)'}`);
 
     try {
-      // Wake-up del servidor (falla silenciosa)
       setTranscriptionStatus('Conectando con el servidor...');
       const wakeUpController = new AbortController();
       const wakeUpTimeout = setTimeout(() => wakeUpController.abort(), 120000);
@@ -543,7 +509,6 @@ export function TranscribeFile() {
 
   const { Icon, FileIcon } = config;
 
-  // Badge que muestra la ruta que se usara
   const UploadRouteBadge = ({ file }: { file: File }) => {
     const direct = needsDirectUpload(file, mediaType);
     return (
@@ -562,7 +527,6 @@ export function TranscribeFile() {
 
   return (
     <div className="space-y-6">
-      {/* Developer Watermark */}
       <DeveloperCredits variant="watermark" />
 
       {/* Toggle Audio / Video */}
@@ -578,9 +542,14 @@ export function TranscribeFile() {
               onClick={() => handleMediaTypeChange(type)}
               className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm transition-all ${
                 active
-                  ? 'bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-primary)] text-white shadow-md'
-                  : 'text-[var(--color-secondary)] hover:bg-gray-100'
+                  ? 'text-white shadow-md'
+                  : 'hover:bg-gray-100'
               }`}
+              // 🎨 ANTES: from-[var(--color-accent)] to-[var(--color-primary)] (azul)
+              style={active
+                ? { background: 'linear-gradient(to right, #8B2035, #3D0A14)', color: 'white' }
+                : { color: '#8B2035' }
+              }
             >
               <Ico className="w-5 h-5" />
               {type === 'audio' ? 'Audio' : 'Video'}
@@ -592,14 +561,14 @@ export function TranscribeFile() {
       {/* Upload Card */}
       <div className="bg-white rounded-2xl shadow-lg p-8">
         <div className="mb-6">
-          <h2 className="mb-2 flex items-center gap-2">
-            <Upload className="w-6 h-6 text-[var(--color-accent)]" />
+          <h2 className="mb-2 flex items-center gap-2" style={{ color: '#8B2035' }}>
+            <Upload className="w-6 h-6" style={{ color: '#8B2035' }} />
             {config.uploadLabel}
           </h2>
-          <p className="text-[var(--color-secondary)]">
+          <p style={{ color: '#8B2035' }}>
             Arrastra y suelta tu archivo aqui, o haz clic para seleccionarlo
           </p>
-          <p className="text-xs text-[var(--color-secondary)] mt-1">{config.hint}</p>
+          <p className="text-xs mt-1" style={{ color: '#8B2035' }}>{config.hint}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -611,9 +580,13 @@ export function TranscribeFile() {
             onDrop={handleDrop}
             className={`relative border-2 border-dashed rounded-xl p-12 text-center transition-all ${
               dragActive
-                ? 'border-[var(--color-accent)] bg-blue-50'
-                : 'border-gray-300 hover:border-[var(--color-accent)] bg-[var(--color-background)]'
+                ? 'bg-red-50'  // 🎨 ANTES: bg-blue-50
+                : 'border-gray-300 bg-[var(--color-background)]'
             }`}
+            // 🎨 borde dinámico guinda
+            style={dragActive ? { borderColor: '#8B2035' } : {}}
+            onMouseEnter={e => { if (!dragActive) (e.currentTarget as HTMLElement).style.borderColor = '#8B2035'; }}
+            onMouseLeave={e => { if (!dragActive) (e.currentTarget as HTMLElement).style.borderColor = '#D1D5DB'; }}
           >
             <input
               type="file"
@@ -626,16 +599,21 @@ export function TranscribeFile() {
 
             {!file ? (
               <div className="pointer-events-none">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-primary)] rounded-full mb-4">
+                {/* 🎨 ANTES: from-[var(--color-accent)] to-[var(--color-primary)] (azul) */}
+                <div
+                  className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"
+                  style={{ background: 'linear-gradient(135deg, #8B2035, #3D0A14)' }}
+                >
                   <Icon className="w-8 h-8 text-white" />
                 </div>
                 <p className="mb-2">
-                  <span className="text-[var(--color-accent)] underline cursor-pointer">
+                  {/* 🎨 ANTES: text-[var(--color-accent)] (azul) */}
+                  <span className="underline cursor-pointer" style={{ color: '#8B2035' }}>
                     {config.dropLabel}
                   </span>{' '}
                   o arrastralo aqui
                 </p>
-                <p className="text-sm text-[var(--color-secondary)]">
+                <p className="text-sm" style={{ color: '#8B2035' }}>
                   Formatos: {config.extensions.join(', ')}
                 </p>
               </div>
@@ -647,7 +625,7 @@ export function TranscribeFile() {
                   <FileIcon className={`w-8 h-8 ${mediaType === 'video' ? 'text-purple-600' : 'text-green-600'}`} />
                 </div>
                 <p className="mb-1"><strong>{file.name}</strong></p>
-                <p className="text-sm text-[var(--color-secondary)]">{formatFileSize(file.size)}</p>
+                <p className="text-sm" style={{ color: '#8B2035' }}>{formatFileSize(file.size)}</p>
                 {mediaType === 'video' && (
                   <p className="text-xs text-purple-500 mt-1">
                     El audio del video sera extraido automaticamente
@@ -670,15 +648,18 @@ export function TranscribeFile() {
               <button
                 type="button"
                 onClick={resetForm}
-                className="px-6 py-3 rounded-xl bg-gray-200 text-[var(--color-secondary)] hover:bg-gray-300 transition-all"
+                className="px-6 py-3 rounded-xl bg-gray-200 hover:bg-gray-300 transition-all"
+                style={{ color: '#8B2035' }}
               >
                 Cambiar archivo
               </button>
             )}
+            {/* 🎨 ANTES: from-[var(--color-accent)] to-[var(--color-primary)] (azul) */}
             <button
               type="submit"
               disabled={!file || loading}
-              className="flex-1 bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-primary)] text-white px-8 py-3 rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 text-white px-8 py-3 rounded-xl hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              style={{ background: 'linear-gradient(to right, #8B2035, #3D0A14)' }}
             >
               {loading ? (
                 <><Loader2 className="w-5 h-5 animate-spin" /> Procesando...</>
@@ -692,30 +673,38 @@ export function TranscribeFile() {
         {/* Progreso */}
         {loading && (
           <div className="mt-6">
-            <div className="bg-blue-50 border-2 border-[#1976D2] rounded-xl p-4">
+            {/* 🎨 ANTES: bg-blue-50 border-[#1976D2] (azul) */}
+            <div className="rounded-xl p-4 border-2" style={{ backgroundColor: '#FDF2F4', borderColor: '#8B2035' }}>
               <div className="flex items-start gap-3 mb-3">
-                <Clock className="w-5 h-5 text-[#1976D2] mt-0.5 flex-shrink-0 animate-pulse" />
+                {/* 🎨 ANTES: text-[#1976D2] (azul) */}
+                <Clock className="w-5 h-5 mt-0.5 flex-shrink-0 animate-pulse" style={{ color: '#8B2035' }} />
                 <div className="flex-1">
-                  <p className="text-sm text-[#003B7E]"><strong>{transcriptionStatus}</strong></p>
-                  <p className="text-xs text-[#1976D2] mt-1">
+                  {/* 🎨 ANTES: text-[#003B7E] (azul oscuro) */}
+                  <p className="text-sm" style={{ color: '#3D0A14' }}><strong>{transcriptionStatus}</strong></p>
+                  <p className="text-xs mt-1" style={{ color: '#8B2035' }}>
                     {mediaType === 'video'
                       ? 'El video se sube directo a AssemblyAI. El tiempo depende de tu conexion y la duracion del video.'
                       : 'El tiempo depende de la duracion del audio. Archivos largos pueden tardar varios minutos.'}
                   </p>
                 </div>
               </div>
-              <div className="w-full bg-blue-100 rounded-full h-2.5 overflow-hidden">
+              {/* 🎨 ANTES: bg-blue-100 → fondo guinda claro */}
+              <div className="w-full rounded-full h-2.5 overflow-hidden" style={{ backgroundColor: '#F5D0D6' }}>
                 <div
-                  className="bg-gradient-to-r from-[#1976D2] to-[#00BCD4] h-2.5 rounded-full transition-all duration-500"
-                  style={{ width: `${progress}%` }}
+                  className="h-2.5 rounded-full transition-all duration-500"
+                  // 🎨 ANTES: from-[#1976D2] to-[#00BCD4] (azul)
+                  style={{
+                    width: `${progress}%`,
+                    background: 'linear-gradient(to right, #8B2035, #C9A84C)',
+                  }}
                 />
               </div>
-              <p className="text-xs text-[#1976D2] text-right mt-1">{progress.toFixed(0)}%</p>
+              <p className="text-xs text-right mt-1" style={{ color: '#8B2035' }}>{progress.toFixed(0)}%</p>
             </div>
           </div>
         )}
 
-        {/* Banner completado */}
+        {/* Banner completado — verde sin cambio ✅ */}
         {!loading && response && response.data.status === 'completed' && transcriptionTime > 0 && (
           <div className="mt-6">
             <div className="bg-green-50 border border-green-200 rounded-xl p-4">
@@ -763,7 +752,7 @@ export function TranscribeFile() {
 
           {appError.detail && (
             <details className="cursor-pointer mb-4">
-              <summary className="text-sm text-[var(--color-secondary)] hover:text-[var(--color-accent)] select-none">
+              <summary className="text-sm hover:underline select-none" style={{ color: '#8B2035' }}>
                 Ver detalle tecnico
               </summary>
               <pre className="mt-3 bg-gray-50 border border-gray-200 p-4 rounded-lg overflow-x-auto text-xs text-gray-700 whitespace-pre-wrap">
@@ -774,7 +763,8 @@ export function TranscribeFile() {
 
           <button
             onClick={resetForm}
-            className="w-full py-3 bg-gray-200 text-[var(--color-secondary)] rounded-lg hover:bg-gray-300 transition-all"
+            className="w-full py-3 bg-gray-200 hover:bg-gray-300 transition-all rounded-lg"
+            style={{ color: '#8B2035' }}
           >
             Intentar de nuevo
           </button>
@@ -784,29 +774,30 @@ export function TranscribeFile() {
       {/* Info cards */}
       <div className="grid md:grid-cols-3 gap-4">
         <div className="bg-white rounded-xl p-6 shadow-sm">
-          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-3">
-            <CheckCircle className="w-6 h-6 text-[var(--color-accent)]" />
+          {/* 🎨 ANTES: bg-blue-100 (azul claro) */}
+          <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: '#F5D0D6' }}>
+            <CheckCircle className="w-6 h-6" style={{ color: '#8B2035' }} />
           </div>
           <h3 className="mb-2">Precision Alta</h3>
-          <p className="text-sm text-[var(--color-secondary)]">
+          <p className="text-sm" style={{ color: '#8B2035' }}>
             Tecnologia avanzada de IA para transcripciones precisas
           </p>
         </div>
         <div className="bg-white rounded-xl p-6 shadow-sm">
-          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-3">
-            <Video className="w-6 h-6 text-[var(--color-accent)]" />
+          <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: '#F5D0D6' }}>
+            <Video className="w-6 h-6" style={{ color: '#8B2035' }} />
           </div>
           <h3 className="mb-2">Audio y Video</h3>
-          <p className="text-sm text-[var(--color-secondary)]">
+          <p className="text-sm" style={{ color: '#8B2035' }}>
             Soporta archivos de audio y video. El audio se extrae automaticamente
           </p>
         </div>
         <div className="bg-white rounded-xl p-6 shadow-sm">
-          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-3">
-            <FileAudio className="w-6 h-6 text-[var(--color-accent)]" />
+          <div className="w-12 h-12 rounded-lg flex items-center justify-center mb-3" style={{ backgroundColor: '#F5D0D6' }}>
+            <FileAudio className="w-6 h-6" style={{ color: '#8B2035' }} />
           </div>
           <h3 className="mb-2">Multiples Formatos</h3>
-          <p className="text-sm text-[var(--color-secondary)]">
+          <p className="text-sm" style={{ color: '#8B2035' }}>
             MP3, WAV, MP4, MOV, MKV, AVI y muchos mas compatibles
           </p>
         </div>

@@ -1,15 +1,6 @@
 /* eslint-disable react/react-in-jsx-scope */
 import { Code2 } from 'lucide-react';
 
-/**
- * COMPONENTE DE CRÉDITOS DE DESARROLLADORES
- * 
- *  ADVERTENCIA: Este componente está protegido por CODEOWNERS
- * Cualquier modificación requiere aprobación explícita de los autores.
- * 
- * Para modificar este archivo, consulta las reglas en .github/CODEOWNERS
- */
-
 export const DEVELOPERS = [
   'Ing. Brayam Gilberto López Morales',
   'Ing. Arturo Darinel López Castillo',
@@ -24,23 +15,20 @@ interface DeveloperCreditsProps {
 export function DeveloperCredits({ variant = 'watermark', className = '' }: DeveloperCreditsProps) {
   if (variant === 'watermark') {
     return (
-      <div className={`bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 rounded-xl shadow-sm border border-blue-100 ${className}`}>
-        <div className="px-6 py-3">
-          <div className="flex items-center justify-center gap-2 text-sm">
-            <Code2 className="w-4 h-4 text-[#1976D2]" />
-            <span className="font-medium text-[#003B7E]">Desarrollado por:</span>
-            <span className="text-[#4A5568] font-semibold">
-              {DEVELOPERS.join(', ')}
-            </span>
-          </div>
-        </div>
+      // 🎨 Antes: bloque visible con fondo azul y borde
+      // Ahora: línea discreta, sin fondo, texto muy pequeño y tenue
+      <div className={`flex items-center justify-center gap-1.5 py-1 opacity-40 hover:opacity-70 transition-opacity duration-300 ${className}`}>
+        <Code2 className="w-3 h-3" style={{ color: '#8B2035' }} />
+        <span className="text-xs" style={{ color: '#6B1A2A' }}>
+          {DEVELOPERS.join(' · ')}
+        </span>
       </div>
     );
   }
 
   if (variant === 'footer') {
     return (
-      <div className={`text-xs text-[var(--color-secondary)] ${className}`}>
+      <div className={`text-xs opacity-40 hover:opacity-70 transition-opacity duration-300 ${className}`} style={{ color: '#8B2035' }}>
         <p className="font-medium mb-1">Desarrollado por:</p>
         {DEVELOPERS.map((dev, index) => (
           <p key={index}>{dev}</p>
@@ -51,7 +39,7 @@ export function DeveloperCredits({ variant = 'watermark', className = '' }: Deve
 
   if (variant === 'compact') {
     return (
-      <div className={`text-xs text-[#4A5568] text-center ${className}`}>
+      <div className={`text-xs text-center opacity-40 hover:opacity-70 transition-opacity duration-300 ${className}`} style={{ color: '#6B1A2A' }}>
         <p className="mb-1">Desarrollado por:</p>
         {DEVELOPERS.map((dev, index) => (
           <p key={index}>{dev}</p>
@@ -63,10 +51,6 @@ export function DeveloperCredits({ variant = 'watermark', className = '' }: Deve
   return null;
 }
 
-/**
- * Hook para obtener los nombres de desarrolladores
- * Útil cuando necesitas los nombres como strings
- */
 export function useDevelopers() {
   return {
     developers: DEVELOPERS,

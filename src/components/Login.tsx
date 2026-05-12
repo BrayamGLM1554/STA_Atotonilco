@@ -32,7 +32,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
     try {
       const loginStartTime = Date.now();
-      
       console.log('[LOGIN] Enviando petición a:', `${AUTH_API_URL}/login`);
       
       const response = await fetch(`${AUTH_API_URL}/login`, {
@@ -52,7 +51,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
       console.log('[LOGIN] Respuesta:', data);
 
       if (!response.ok) {
-        // Manejar errores HTTP
         if (response.status === 400) {
           setError('Por favor completa todos los campos correctamente');
         } else if (response.status === 401) {
@@ -67,14 +65,10 @@ export function Login({ onLoginSuccess }: LoginProps) {
       }
 
       if (data.success) {
-        // Guardar token en localStorage
         localStorage.setItem('token', data.data.token);
         localStorage.setItem('user', JSON.stringify(data.data.user));
-        
         console.log('[LOGIN] Token guardado en localStorage');
         console.log('[LOGIN] Usuario:', data.data.user.email);
-        
-        // Notificar al componente padre
         onLoginSuccess(data.data);
       } else {
         console.error('[LOGIN] Error:', data.message);
@@ -82,7 +76,6 @@ export function Login({ onLoginSuccess }: LoginProps) {
       }
     } catch (err) {
       console.error('[LOGIN CRÍTICO] Error completo:', err);
-      
       if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
         setError('No se pudo conectar al servidor. Verifica tu conexión a internet o que el servidor esté disponible.');
         console.error('[LOGIN] Posibles causas:');
@@ -99,7 +92,10 @@ export function Login({ onLoginSuccess }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#003B7E] via-[#1976D2] to-[#00BCD4] flex items-center justify-center p-4">
+    // 🎨 ANTES: from-[#003B7E] via-[#1976D2] to-[#00BCD4]
+    <div className="min-h-screen flex items-center justify-center p-4"
+      style={{ background: 'linear-gradient(135deg, #3D0A14 0%, #6B1A2A 50%, #8B2035 100%)' }}
+    >
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
         {/* Header with Logo */}
         <div className="text-center mb-8">
@@ -110,7 +106,9 @@ export function Login({ onLoginSuccess }: LoginProps) {
               className="w-32 h-32 object-contain"
             />
           </div>
-          <h1 className="mb-2 text-[#003B7E]">Iniciar Sesión</h1>
+          {/* 🎨 ANTES: text-[#003B7E] */}
+          <h1 className="mb-2" style={{ color: '#6B1A2A' }}>Iniciar Sesión</h1>
+          {/* 🎨 sin cambio */}
           <p className="text-[#4A5568]">
             Sistema de Transcripción Automática
           </p>
@@ -125,14 +123,17 @@ export function Login({ onLoginSuccess }: LoginProps) {
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Mail className="w-5 h-5 text-[var(--color-secondary)]" />
+                {/* 🎨 ANTES: text-[var(--color-secondary)] → guinda medio */}
+                <Mail className="w-5 h-5" style={{ color: '#8B2035' }} />
               </div>
               <input
                 type="email"
                 id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:border-transparent"
+                // 🎨 focus:ring → guinda dorado
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                style={{ '--tw-ring-color': '#C9A84C' } as React.CSSProperties}
                 placeholder="usuario@ejemplo.com"
                 disabled={loading}
                 autoComplete="email"
@@ -147,14 +148,16 @@ export function Login({ onLoginSuccess }: LoginProps) {
             </label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Lock className="w-5 h-5 text-[var(--color-secondary)]" />
+                {/* 🎨 guinda medio */}
+                <Lock className="w-5 h-5" style={{ color: '#8B2035' }} />
               </div>
               <input
                 type="password"
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:border-transparent"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:border-transparent"
+                style={{ '--tw-ring-color': '#C9A84C' } as React.CSSProperties}
                 placeholder="••••••••"
                 disabled={loading}
                 autoComplete="current-password"
@@ -162,7 +165,7 @@ export function Login({ onLoginSuccess }: LoginProps) {
             </div>
           </div>
 
-          {/* Error Message */}
+          {/* Error Message — sin cambio, rojo ya es apropiado */}
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">
               {error}
@@ -170,10 +173,12 @@ export function Login({ onLoginSuccess }: LoginProps) {
           )}
 
           {/* Submit Button */}
+          {/* 🎨 ANTES: from-[var(--color-accent)] to-[var(--color-primary)] → guinda oscuro a guinda medio */}
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-primary)] text-white py-3 rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full text-white py-3 rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            style={{ background: 'linear-gradient(to right, #8B2035, #3D0A14)' }}
           >
             {loading ? (
               <>
@@ -191,7 +196,8 @@ export function Login({ onLoginSuccess }: LoginProps) {
 
         {/* Footer */}
         <div className="mt-6 text-center">
-          <p className="text-sm text-[var(--color-secondary)]">
+          {/* 🎨 guinda medio */}
+          <p className="text-sm" style={{ color: '#8B2035' }}>
             ¿Problemas para acceder? Contacta al administrador
           </p>
         </div>

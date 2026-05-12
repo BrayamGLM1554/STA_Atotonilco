@@ -10,7 +10,7 @@ import {
 import jsPDF from "jspdf";
 import { useState, useEffect } from "react";
 import pdfLogo from "/images/Logo_STA_Slogan.png";
-import { DeveloperCredits, useDevelopers } from './DeveloperCredits';
+import { DeveloperCredits, useDevelopers } from "./DeveloperCredits";
 
 interface PDFViewerProps {
   text: string;
@@ -71,7 +71,7 @@ export function PDFViewer({
         sentences
           .slice(i, i + chunkSize)
           .map((s) => s.trim())
-          .join(" ")
+          .join(" "),
       );
     }
     return grouped.length ? grouped : [raw];
@@ -88,7 +88,10 @@ export function PDFViewer({
 
       for (const para of paragraphs) {
         const words = para.split(" ");
-        if (currentWords.length + words.length > wordsPerPage && currentParas.length) {
+        if (
+          currentWords.length + words.length > wordsPerPage &&
+          currentParas.length
+        ) {
           pageArray.push(currentParas.join("\n\n"));
           currentParas = [];
           currentWords = [];
@@ -149,49 +152,78 @@ export function PDFViewer({
         timestamp: new Date().toISOString(),
       },
       null,
-      2
+      2,
     );
   };
 
   const getFormattedContent = () => {
     switch (outputFormat) {
-      case "srt":  return convertToSRT(text);
-      case "vtt":  return convertToVTT(text);
-      case "json": return convertToJSON();
-      default:     return text;
+      case "srt":
+        return convertToSRT(text);
+      case "vtt":
+        return convertToVTT(text);
+      case "json":
+        return convertToJSON();
+      default:
+        return text;
     }
   };
 
   // ─── Generación del PDF ───────────────────────────────────────────────────────
   const downloadAsPDF = async () => {
     const pdf = new jsPDF("p", "mm", "a4");
-    const pageWidth  = pdf.internal.pageSize.getWidth();
+    const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const margin       = 20;
+    const margin = 20;
     const contentWidth = pageWidth - 2 * margin;
     let currentY = 20;
 
     // ── Logo ──────────────────────────────────────────────────────────────────
     const logoImg = new Image();
     logoImg.src = pdfLogo;
-    await new Promise((resolve) => { logoImg.onload = resolve; });
+    await new Promise((resolve) => {
+      logoImg.onload = resolve;
+    });
 
-    // ── Header con gradiente simulado ─────────────────────────────────────────
+    // ── Header con gradiente estilo Morena ───────────────────────────────────────
     const numStrips = 20;
     const stripWidth = pageWidth / numStrips;
+
     for (let i = 0; i < numStrips; i++) {
       const ratio = i / (numStrips - 1);
-      const g = Math.round(59  + (188 - 59)  * ratio);
-      const b = Math.round(126 + (212 - 126) * ratio);
-      pdf.setFillColor(0, g, b);
+
+      // Color inicial (vino oscuro)
+      const r1 = 90;
+      const g1 = 15;
+      const b1 = 25;
+
+      // Color final (guinda Morena)
+      const r2 = 172;
+      const g2 = 29;
+      const b2 = 57;
+
+      const r = Math.round(r1 + (r2 - r1) * ratio);
+      const g = Math.round(g1 + (g2 - g1) * ratio);
+      const b = Math.round(b1 + (b2 - b1) * ratio);
+
+      pdf.setFillColor(r, g, b);
       pdf.rect(i * stripWidth, 0, stripWidth + 1, 50, "F");
     }
 
-    const logoWidth  = 60;
+    const logoWidth = 60;
     const logoHeight = 35;
-    pdf.addImage(logoImg, "PNG", pageWidth - margin - logoWidth, 8, logoWidth, logoHeight);
+
+    pdf.addImage(
+      logoImg,
+      "PNG",
+      pageWidth - margin - logoWidth,
+      8,
+      logoWidth,
+      logoHeight,
+    );
 
     pdf.setTextColor(255, 255, 255);
+
     pdf.setFontSize(26);
     pdf.setFont("helvetica", "bold");
     pdf.text("Transcripción de Audio", margin, 24);
@@ -214,9 +246,13 @@ export function PDFViewer({
     pdf.setTextColor(26, 32, 44);
     pdf.setFontSize(10);
     pdf.text(
-      new Date().toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" }),
+      new Date().toLocaleDateString("es-ES", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
       margin + 3,
-      metadataY + 13
+      metadataY + 13,
     );
 
     currentY = metadataY + 28;
@@ -238,8 +274,8 @@ export function PDFViewer({
     pdf.setFontSize(11);
     pdf.setFont("helvetica", "normal");
 
-    const lineHeight      = 6;   // mm por línea
-    const paragraphSpacing = 4;  // mm extra entre párrafos
+    const lineHeight = 6; // mm por línea
+    const paragraphSpacing = 4; // mm extra entre párrafos
     const paragraphs = textToParagraphs(text);
 
     for (const para of paragraphs) {
@@ -272,10 +308,12 @@ export function PDFViewer({
 
     pdf.setFontSize(8);
     developers.forEach((dev, index) => {
-      pdf.text(dev, pageWidth / 2, footerY + 5 + index * 5, { align: "center" });
+      pdf.text(dev, pageWidth / 2, footerY + 5 + index * 5, {
+        align: "center",
+      });
     });
 
-    const cleanName = fileName.replace(/\.[^/.]+$/, ''); // quita la extensión
+    const cleanName = fileName.replace(/\.[^/.]+$/, ""); // quita la extensión
     pdf.save(`Transcripcion "${cleanName}".pdf`);
   };
 
@@ -293,10 +331,10 @@ export function PDFViewer({
         json: "application/json",
       };
       const blob = new Blob([content], { type: mimeTypes[outputFormat] });
-      const url  = URL.createObjectURL(blob);
-      const a    = document.createElement("a");
-      a.href     = url;
-      const cleanName = fileName.replace(/\.[^/.]+$/, '');
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const cleanName = fileName.replace(/\.[^/.]+$/, "");
       a.download = `Transcripcion "${cleanName}".${extensions[outputFormat]}`;
       a.click();
       URL.revokeObjectURL(url);
@@ -344,7 +382,8 @@ export function PDFViewer({
         <div className="mb-4">
           <h3 className="pb-2">Vista previa del documento</h3>
           <p className="text-xs text-[var(--color-secondary)]">
-            Esta es una representación de cómo se verá tu documento al descargarlo
+            Esta es una representación de cómo se verá tu documento al
+            descargarlo
           </p>
         </div>
 
@@ -355,20 +394,43 @@ export function PDFViewer({
               {currentPage === 1 && (
                 <div
                   className="bg-white shadow-2xl mx-auto"
-                  style={{ width: "210mm", minHeight: "297mm", aspectRatio: "210/297" }}
+                  style={{
+                    width: "210mm",
+                    minHeight: "297mm",
+                    aspectRatio: "210/297",
+                  }}
                 >
-                  <div className="p-8 h-full flex flex-col" style={{ fontSize: "11pt" }}>
+                  <div
+                    className="p-8 h-full flex flex-col"
+                    style={{ fontSize: "11pt" }}
+                  >
                     {/* Header degradado */}
                     <div className="-mx-8 -mt-8 mb-6 relative h-[50px] overflow-hidden">
                       <div className="absolute inset-0 flex">
                         {Array.from({ length: 20 }).map((_, i) => {
                           const ratio = i / 19;
-                          const g = Math.round(59  + (188 - 59)  * ratio);
-                          const b = Math.round(126 + (212 - 126) * ratio);
+
+                          // Vino oscuro
+                          const r1 = 90;
+                          const g1 = 15;
+                          const b1 = 25;
+
+                          // Guinda Morena
+                          const r2 = 172;
+                          const g2 = 29;
+                          const b2 = 57;
+
+                          const r = Math.round(r1 + (r2 - r1) * ratio);
+                          const g = Math.round(g1 + (g2 - g1) * ratio);
+                          const b = Math.round(b1 + (b2 - b1) * ratio);
+
                           return (
                             <div
                               key={i}
-                              style={{ backgroundColor: `rgb(0, ${g}, ${b})`, width: "5%" }}
+                              style={{
+                                backgroundColor: `rgb(${r}, ${g}, ${b})`,
+                                width: "5%",
+                              }}
                             />
                           );
                         })}
@@ -376,17 +438,32 @@ export function PDFViewer({
                       <div className="relative z-10 flex items-start justify-between px-6 py-6 text-white">
                         <div>
                           <h2
-                            className="text-white mb-1"
-                            style={{ fontSize: "26pt", fontWeight: "bold", fontFamily: "Helvetica, Arial, sans-serif" }}
+                            className="mb-1"
+                            style={{
+                              color: "#ffffff",
+                              fontSize: "26pt",
+                              fontWeight: "bold",
+                              fontFamily: "Helvetica, Arial, sans-serif",
+                            }}
                           >
                             Transcripción de Audio
                           </h2>
-                          <p className="text-blue-100" style={{ fontSize: "12pt", fontFamily: "Helvetica, Arial, sans-serif" }}>
+                          <p
+                            className="text-white"
+                            style={{
+                              fontSize: "12pt",
+                              fontFamily: "Helvetica, Arial, sans-serif",
+                            }}
+                          >
                             Sistema de Transcripción Automática
                           </p>
                         </div>
                         <div className="flex-shrink-0">
-                          <img src={pdfLogo} alt="STA Logo" className="h-16 w-auto object-contain" />
+                          <img
+                            src={pdfLogo}
+                            alt="STA Logo"
+                            className="h-16 w-auto object-contain"
+                          />
                         </div>
                       </div>
                     </div>
@@ -394,15 +471,25 @@ export function PDFViewer({
                     {/* Metadata: SOLO fecha + idioma (confianza y tiempo solo en vista) */}
                     <div className="flex gap-3 mb-4 flex-wrap">
                       <div className="bg-[#F5F7FA] p-3 rounded-lg">
-                        <p className="text-xs text-[#4A5568] mb-1">Fecha de transcripción</p>
+                        <p className="text-xs text-[#4A5568] mb-1">
+                          Fecha de transcripción
+                        </p>
                         <p className="font-semibold text-sm text-[#1A202C]">
-                          {new Date().toLocaleDateString("es-ES", { year: "numeric", month: "long", day: "numeric" })}
+                          {new Date().toLocaleDateString("es-ES", {
+                            year: "numeric",
+                            month: "long",
+                            day: "numeric",
+                          })}
                         </p>
                       </div>
                       {languageCode && (
                         <div className="bg-[#F5F7FA] p-3 rounded-lg">
-                          <p className="text-xs text-[#4A5568] mb-1">Idioma detectado</p>
-                          <p className="font-semibold text-sm text-[#1A202C]">{languageCode.toUpperCase()}</p>
+                          <p className="text-xs text-[#4A5568] mb-1">
+                            Idioma detectado
+                          </p>
+                          <p className="font-semibold text-sm text-[#1A202C]">
+                            {languageCode.toUpperCase()}
+                          </p>
                         </div>
                       )}
                     </div>
@@ -411,7 +498,9 @@ export function PDFViewer({
                     <div className="flex gap-3 mb-4 flex-wrap">
                       {confidence && (
                         <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
-                          <p className="text-xs text-[#4A5568] mb-1">Confianza</p>
+                          <p className="text-xs text-[#4A5568] mb-1">
+                            Confianza
+                          </p>
                           <p className="font-semibold text-sm text-[#1A202C]">
                             {(confidence * 100).toFixed(0)}%
                           </p>
@@ -420,14 +509,16 @@ export function PDFViewer({
                       {transcriptionTime && transcriptionTime > 0 && (
                         <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg">
                           <p className="text-xs text-[#4A5568] mb-1 flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> Tiempo de procesamiento
+                            <Clock className="w-3 h-3" /> Tiempo de
+                            procesamiento
                           </p>
                           <p className="font-semibold text-sm text-[#2B6CB0]">
                             {formatTimeElapsed(transcriptionTime)}
                           </p>
                         </div>
                       )}
-                      {(confidence || (transcriptionTime && transcriptionTime > 0)) && (
+                      {(confidence ||
+                        (transcriptionTime && transcriptionTime > 0)) && (
                         <p className="text-xs text-gray-400 self-end mb-1">
                           * estos datos no se incluyen en el PDF
                         </p>
@@ -440,7 +531,12 @@ export function PDFViewer({
                     {/* Título sección */}
                     <h3
                       className="mb-4"
-                      style={{ color: "#1F3A5F", fontSize: "14pt", fontWeight: "bold", fontFamily: "Helvetica, Arial, sans-serif" }}
+                      style={{
+                        color: "#1F3A5F",
+                        fontSize: "14pt",
+                        fontWeight: "bold",
+                        fontFamily: "Helvetica, Arial, sans-serif",
+                      }}
                     >
                       Transcripción
                     </h3>
@@ -448,7 +544,10 @@ export function PDFViewer({
                     {/* Texto con párrafos */}
                     <div
                       className="flex-1 text-[#1A202C] overflow-hidden"
-                      style={{ fontSize: "11pt", fontFamily: "Helvetica, Arial, sans-serif" }}
+                      style={{
+                        fontSize: "11pt",
+                        fontFamily: "Helvetica, Arial, sans-serif",
+                      }}
                     >
                       {pages[0]?.split("\n\n").map((para, i) => (
                         <p
@@ -466,7 +565,9 @@ export function PDFViewer({
                       <DeveloperCredits variant="compact" />
                     </div>
                     <div className="text-center mt-2">
-                      <p className="text-xs text-[#4A5568]">Página 1 de {totalPages}</p>
+                      <p className="text-xs text-[#4A5568]">
+                        Página 1 de {totalPages}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -476,12 +577,22 @@ export function PDFViewer({
               {currentPage > 1 && (
                 <div
                   className="bg-white shadow-2xl mx-auto"
-                  style={{ width: "210mm", minHeight: "297mm", aspectRatio: "210/297" }}
+                  style={{
+                    width: "210mm",
+                    minHeight: "297mm",
+                    aspectRatio: "210/297",
+                  }}
                 >
-                  <div className="p-8 h-full flex flex-col" style={{ fontSize: "11pt" }}>
+                  <div
+                    className="p-8 h-full flex flex-col"
+                    style={{ fontSize: "11pt" }}
+                  >
                     <div
                       className="flex-1 text-[#1A202C]"
-                      style={{ fontSize: "11pt", fontFamily: "Helvetica, Arial, sans-serif" }}
+                      style={{
+                        fontSize: "11pt",
+                        fontFamily: "Helvetica, Arial, sans-serif",
+                      }}
                     >
                       {pages[currentPage - 1]?.split("\n\n").map((para, i) => (
                         <p
@@ -497,7 +608,9 @@ export function PDFViewer({
                       <DeveloperCredits variant="compact" />
                     </div>
                     <div className="text-center mt-2">
-                      <p className="text-xs text-[#4A5568]">Página {currentPage} de {totalPages}</p>
+                      <p className="text-xs text-[#4A5568]">
+                        Página {currentPage} de {totalPages}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -528,10 +641,13 @@ export function PDFViewer({
               Anterior
             </button>
             <div className="text-sm text-[var(--color-secondary)]">
-              Página <strong>{currentPage}</strong> de <strong>{totalPages}</strong>
+              Página <strong>{currentPage}</strong> de{" "}
+              <strong>{totalPages}</strong>
             </div>
             <button
-              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              onClick={() =>
+                setCurrentPage(Math.min(totalPages, currentPage + 1))
+              }
               disabled={currentPage === totalPages}
               className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
@@ -549,13 +665,17 @@ export function PDFViewer({
       {/* Botón de descarga */}
       <div className="px-6 py-4 bg-white border-t border-gray-200">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <DeveloperCredits variant="footer" className="text-center md:text-left" />
+          <DeveloperCredits
+            variant="footer"
+            className="text-center md:text-left"
+          />
           <button
             onClick={downloadFile}
             className="flex items-center gap-2 px-6 py-3 bg-[var(--color-accent)] text-white rounded-lg hover:bg-[var(--color-primary)] transition-all shadow-md hover:shadow-lg whitespace-nowrap"
           >
             <Download className="w-4 h-4" />
-            Descargar {outputFormat === "text" ? "PDF" : outputFormat.toUpperCase()}
+            Descargar{" "}
+            {outputFormat === "text" ? "PDF" : outputFormat.toUpperCase()}
           </button>
         </div>
       </div>
