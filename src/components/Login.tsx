@@ -1,9 +1,9 @@
 /* eslint-disable react/react-in-jsx-scope */
 import { useState } from 'react';
 import { Loader2, Lock, Mail, LogIn } from 'lucide-react';
-import loginLogo from '/images/Logo.png';
+import loginLogo from '/images/LogoCircular.png';
 
-const AUTH_API_URL = 'https://login-transcriptor.onrender.com/api/auth';
+const AUTH_API_URL = 'http://localhost:3050/api/auth';
 
 interface LoginProps {
   onLoginSuccess: (userData: any) => void;

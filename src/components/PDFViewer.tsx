@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import jsPDF from "jspdf";
 import { useState, useEffect } from "react";
-import pdfLogo from "/images/Logo_STA_Slogan.png";
+import pdfLogo from "/images/LogoCircular.png";
 import { DeveloperCredits, useDevelopers } from "./DeveloperCredits";
 
 interface PDFViewerProps {
@@ -210,8 +210,8 @@ export function PDFViewer({
       pdf.rect(i * stripWidth, 0, stripWidth + 1, 50, "F");
     }
 
-    const logoWidth = 60;
-    const logoHeight = 35;
+    const logoWidth = 30;
+    const logoHeight = 30;
 
     pdf.addImage(
       logoImg,
@@ -462,7 +462,7 @@ export function PDFViewer({
                           <img
                             src={pdfLogo}
                             alt="STA Logo"
-                            className="h-16 w-auto object-contain"
+                            className="h-20 w-auto object-contain"
                           />
                         </div>
                       </div>

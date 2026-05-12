@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { TranscribeFile } from './components/TranscribeFile';
 import { Login } from './components/Login';
 import { LogOut } from 'lucide-react';
-import systemLogo from '/images/Logo_STA.png';
+import systemLogo from '/images/LogoCircular.png';
 
 export default function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
